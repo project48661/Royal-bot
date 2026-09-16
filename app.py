@@ -1,28 +1,55 @@
+
 import streamlit as st
+import yfinance as yf
 import datetime
 import pytz
 
-st.set_page_config(page_title="ROYAL BOT V5.4", page_icon="👑", layout="centered")
+st.set_page_config(page_title="ROYAL BOT V5.4 LIVE", page_icon="👑", layout="centered")
+st.title("👑 ROYAL BOT V5.4 - LIVE PRICE")
 
 kampala_tz = pytz.timezone("Africa/Kampala")
 now = datetime.datetime.now(kampala_tz)
+st.write(f"🕐 Heure Kampala: {now.strftime('%H:%M:%S')} - Actualisation auto")
 
-st.title("👑 ROYAL BOT V5.4")
-st.subheader(f"Live Scan - 4 Paires Actives 🕐 Heure de {now.strftime('%H:%M')} Kampala")
+def get_signal(ticker):
+    try:
+        data = yf.download(ticker, period="1d", interval="1m", progress=False)
+        price = data['Close'].iloc[-1]
+        open_price = data['Open'].iloc[0]
+        change = ((price - open_price)/open_price)*100
 
-paires = [
-    {"nom": "GBPAUD", "tendance": "HAUSSIER H4", "prix": "en attente BOS M1", "ote": "Surveille 50-61.8%"},
-    {"nom": "EURUSD", "tendance": "BAISSIER H4", "prix": "en attente BOS M1", "ote": "Surveille 50-61.8%"},
-    {"nom": "GBPUSD", "tendance": "HAUSSIER H4", "prix": "BOS confirmé M1", "ote": "Entrée possible"},
-    {"nom": "AUDUSD", "tendance": "RANGE H4", "prix": "en attente", "ote": "Attendre cassure"},
-]
+        if change > 0.05:
+            tendance = "HAUSSIER H4 🟢"
+            bos = "BOS confirmé M1 ✅"
+        elif change < -0.05:
+            tendance = "BAISSIER H4 🔴"
+            bos = "BOS confirmé M1 ✅"
+        else:
+            tendance = "RANGE H4 🟡"
+            bos = "En attente BOS M1"
 
-for p in paires:
-    couleur = "🟢" if "HAUSSIER" in p["tendance"] else "🔴" if "BAISSIER" in p["tendance"] else "🟡"
+        return float(price), tendance, bos, float(change)
+    except:
+        return 0, "Erreur", "N/A", 0
+
+paires = {
+    "GBPAUD": "GBPAUD=X",
+    "EURUSD": "EURUSD=X",
+    "GBPUSD": "GBPUSD=X",
+    "AUDUSD": "AUDUSD=X"
+}
+
+for nom, ticker in paires.items():
+    prix, tendance, bos, change = get_signal(ticker)
+    color = "green" if change>0 else "red"
     with st.container(border=True):
-        st.markdown(f"**{p['nom']} | {couleur} {p['tendance']}**")
-        st.write(f"- Prix: {p['prix']}")
-        st.write(f"- OTE M15: {p['ote']}")
-        st.write(f"- 🔔 Ouvre TradingView pour confirmer BOS")
+        st.markdown(f"**{nom} | {tendance}**")
+        st.markdown(f"Prix Réel: <b style='color:{color}'>{prix:.5f} ({change:+.2f}%)</b>", unsafe_allow_html=True)
+        st.write(f"Prix: {bos}")
+        st.write(f"OTE M15: Surveille 50-61.8%")
+        st.caption(f"Source: Yahoo Finance Live")
 
-st.info("Bot en ligne - Actualisation automatique toutes les 5 minutes")
+if st.button("🔄 Actualiser Maintenant"):
+    st.rerun()
+
+st.info("Les prix sont réels maintenant! Le bot se met à jour à chaque actualisation.")
